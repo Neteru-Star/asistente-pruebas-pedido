@@ -24,12 +24,12 @@ def test_seleccion_vacia_no_envia_nada():
 
 
 def test_rutas_de_windows_y_con_punto_se_normalizan():
-    seleccion = ["app\pedidos.py", "./datos/semilla.sql"]
+    seleccion = [r"app\pedidos.py", "./datos/semilla.sql"]
     assert filtrar_envio(seleccion, PERMITIDAS) == ["app/pedidos.py", "datos/semilla.sql"]
 
 
 def test_archivo_repetido_se_envia_una_sola_vez():
-    seleccion = ["app/pedidos.py", "./app/pedidos.py", "app\pedidos.py"]
+    seleccion = ["app/pedidos.py", "./app/pedidos.py", r"app\pedidos.py"]
     assert filtrar_envio(seleccion, PERMITIDAS) == ["app/pedidos.py"]
 
 

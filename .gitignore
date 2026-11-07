@@ -1,0 +1,13 @@
+# Claves y configuración local: nunca se suben (RNF-04)
+.env
+.env.*
+
+# Bases de datos reales
+*.db
+*.sqlite
+*.sqlite3
+
+# Entorno de Python
+.venv/
+__pycache__/
+.pytest_cache/

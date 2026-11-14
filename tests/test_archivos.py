@@ -109,3 +109,12 @@ def test_rutas_con_partes_redundantes_se_normalizan(ruta):
 )
 def test_rutas_fuera_del_repositorio_no_se_envian(ruta):
     assert filtrar_envio([ruta], PERMITIDAS) == []
+
+
+@pytest.mark.parametrize(
+    ("seleccion", "permitidas"),
+    [("app/pedidos.py", PERMITIDAS), ([None], PERMITIDAS), (["app/pedidos.py"], "app/pedidos.py")],
+)
+def test_entradas_que_no_son_listas_de_rutas_lanzan_type_error(seleccion, permitidas):
+    with pytest.raises(TypeError, match="lista de rutas"):
+        filtrar_envio(seleccion, permitidas)

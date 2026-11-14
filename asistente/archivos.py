@@ -40,11 +40,22 @@ def _es_prohibido(ruta: str) -> bool:
     return es_env or es_base_de_datos or nombre.endswith(EXTENSIONES_CLAVES)
 
 
+def _validar_rutas(rutas: object, parametro: str) -> None:
+    """Lanza TypeError si rutas no es una lista o tupla de textos."""
+    es_lista_de_textos = isinstance(rutas, (list, tuple)) and all(
+        isinstance(ruta, str) for ruta in rutas
+    )
+    if not es_lista_de_textos:
+        raise TypeError(f"{parametro} debe ser una lista de rutas de texto")
+
+
 def filtrar_envio(seleccion: list[str], permitidas: list[str]) -> list[str]:
     """Devuelve las rutas de la selección que están en la lista permitida.
 
     Lanza ArchivoProhibidoError si la selección incluye un .env o una base de datos.
     """
+    _validar_rutas(seleccion, "seleccion")
+    _validar_rutas(permitidas, "permitidas")
     for ruta in seleccion:
         if _es_prohibido(_normalizar(ruta)):
             raise ArchivoProhibidoError(f"El archivo {ruta} no se puede enviar")

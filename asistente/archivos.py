@@ -1,4 +1,7 @@
-"""HU-10: decide qué archivos se pueden enviar a la API de IA."""
+"""HU-10: decide qué archivos se pueden enviar a la API de IA.
+
+Protege RNF-04: ningún contenido del .env ni de la base de datos real llega a la IA.
+"""
 
 import posixpath
 import re
@@ -21,23 +24,43 @@ def _normalizar(ruta: str) -> str:
     return posixpath.normpath(ruta.replace("\\", "/"))
 
 
-def _es_prohibido(ruta: str) -> bool:
-    """Indica si la ruta es un .env o una variante, una base de datos o una clave privada."""
-    if ":" in ruta:
-        # Flujos alternativos de NTFS (.env::$DATA) o rutas con unidad (C:/...)
-        return True
-    # Windows ignora los puntos y espacios finales: ".env " abre el mismo archivo que ".env"
-    nombre = ruta.split("/")[-1].lower().rstrip(". ")
-    if PATRON_NOMBRE_CORTO.search(nombre):
-        return True
-    es_env = (
+def _es_ambigua_en_windows(ruta: str, nombre: str) -> bool:
+    """Indica si en Windows la ruta podría abrir otro archivo distinto del que parece.
+
+    Cubre los flujos alternativos de NTFS (.env::$DATA), las rutas con unidad (C:/...) y los
+    nombres cortos 8.3 (ENV~1).
+    """
+    return ":" in ruta or PATRON_NOMBRE_CORTO.search(nombre) is not None
+
+
+def _es_env(nombre: str) -> bool:
+    """Indica si el nombre es un .env o una variante (.env.local, prod.env, .envrc)."""
+    return (
         nombre == NOMBRE_ENV
         or nombre.startswith(NOMBRE_ENV + ".")
         or nombre.endswith(NOMBRE_ENV)
         or nombre in NOMBRES_ENV_EXTRA
     )
-    es_base_de_datos = PATRON_BASE_DE_DATOS.search(nombre) is not None
-    return es_env or es_base_de_datos or nombre.endswith(EXTENSIONES_CLAVES)
+
+
+def _es_prohibido(ruta: str) -> bool:
+    """Indica si una ruta normalizada nunca se puede enviar a la IA.
+
+    Args:
+        ruta: ruta ya normalizada con _normalizar.
+
+    Returns:
+        True si es un .env o una variante, una base de datos o uno de sus archivos auxiliares,
+        una clave privada, o una ruta ambigua en Windows.
+    """
+    # Windows ignora los puntos y espacios finales: ".env " abre el mismo archivo que ".env"
+    nombre = ruta.split("/")[-1].lower().rstrip(". ")
+    return (
+        _es_ambigua_en_windows(ruta, nombre)
+        or _es_env(nombre)
+        or PATRON_BASE_DE_DATOS.search(nombre) is not None
+        or nombre.endswith(EXTENSIONES_CLAVES)
+    )
 
 
 def _para_mostrar(ruta: str) -> str:
@@ -55,20 +78,41 @@ def _validar_rutas(rutas: object, parametro: str) -> None:
 
 
 def filtrar_envio(seleccion: list[str], permitidas: list[str]) -> list[str]:
-    """Devuelve las rutas de la selección que están en la lista permitida.
+    """Devuelve las rutas de la selección que se pueden enviar a la API de IA.
 
-    Lanza ArchivoProhibidoError si la selección incluye un .env o una base de datos.
+    Primero revisa toda la selección: si hay un archivo prohibido, no devuelve nada. Después
+    conserva solo las rutas que están en la lista permitida. Las rutas se comparan normalizadas,
+    con "/" y sin "./" ni "//".
+
+    Args:
+        seleccion: rutas que el desarrollador quiere enviar, relativas a la raíz del repositorio.
+        permitidas: rutas exactas de la lista permitida, sin patrones como app/*.py.
+
+    Returns:
+        Las rutas normalizadas de la selección que están en la lista permitida, en el mismo
+        orden y sin repetidas. Las que no están en la lista se omiten sin error.
+
+    Raises:
+        TypeError: si seleccion o permitidas no son una lista o tupla de textos.
+        ArchivoProhibidoError: si la selección incluye un .env o una variante, una base de
+            datos o uno de sus archivos auxiliares, una clave privada o una ruta ambigua en
+            Windows, aunque esté en la lista permitida. El mensaje es
+            «El archivo <ruta> no se puede enviar».
     """
     _validar_rutas(seleccion, "seleccion")
     _validar_rutas(permitidas, "permitidas")
-    for ruta in seleccion:
-        if _es_prohibido(_normalizar(ruta)):
-            raise ArchivoProhibidoError(f"El archivo {_para_mostrar(ruta)} no se puede enviar")
+    normalizadas = [_normalizar(ruta) for ruta in seleccion]
+    for original, normalizada in zip(seleccion, normalizadas, strict=True):
+        if _es_prohibido(normalizada):
+            raise ArchivoProhibidoError(
+                f"El archivo {_para_mostrar(original)} no se puede enviar"
+            )
 
-    permitidas_normalizadas = {_normalizar(p) for p in permitidas}
+    permitidas_normalizadas = {_normalizar(ruta) for ruta in permitidas}
     resultado = []
-    for ruta in seleccion:
-        normalizada = _normalizar(ruta)
-        if normalizada in permitidas_normalizadas and normalizada not in resultado:
-            resultado.append(normalizada)
+    vistas = set()
+    for ruta in normalizadas:
+        if ruta in permitidas_normalizadas and ruta not in vistas:
+            vistas.add(ruta)
+            resultado.append(ruta)
     return resultado

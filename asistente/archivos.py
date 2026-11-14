@@ -1,7 +1,12 @@
 """HU-10: decide qué archivos se pueden enviar a la API de IA."""
 
+import re
+
 NOMBRE_ENV = ".env"
-EXTENSIONES_BASE_DE_DATOS = (".db", ".sqlite", ".sqlite3")
+NOMBRES_ENV_EXTRA = (".envrc",)
+# .db, .sqlite o .sqlite3 al final o seguidos de "-" o "." (papeleria.db-wal, papeleria.db.bak)
+PATRON_BASE_DE_DATOS = re.compile(r"\.(db|sqlite3?)([.-]|$)")
+EXTENSIONES_CLAVES = (".pem", ".key")
 
 
 class ArchivoProhibidoError(Exception):
@@ -17,10 +22,16 @@ def _normalizar(ruta: str) -> str:
 
 
 def _es_prohibido(ruta: str) -> bool:
-    """Indica si la ruta es un .env, una variante .env.* o una base de datos."""
+    """Indica si la ruta es un .env o una variante, una base de datos o una clave privada."""
     nombre = ruta.split("/")[-1].lower()
-    es_env = nombre == NOMBRE_ENV or nombre.startswith(NOMBRE_ENV + ".")
-    return es_env or nombre.endswith(EXTENSIONES_BASE_DE_DATOS)
+    es_env = (
+        nombre == NOMBRE_ENV
+        or nombre.startswith(NOMBRE_ENV + ".")
+        or nombre.endswith(NOMBRE_ENV)
+        or nombre in NOMBRES_ENV_EXTRA
+    )
+    es_base_de_datos = PATRON_BASE_DE_DATOS.search(nombre) is not None
+    return es_env or es_base_de_datos or nombre.endswith(EXTENSIONES_CLAVES)
 
 
 def filtrar_envio(seleccion: list[str], permitidas: list[str]) -> list[str]:

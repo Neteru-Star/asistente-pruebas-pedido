@@ -55,3 +55,30 @@ def test_base_de_datos_real_se_bloquea_aunque_este_en_la_lista():
     permitidas = PERMITIDAS + ["instance/papeleria.db"]
     with pytest.raises(ArchivoProhibidoError, match="papeleria.db"):
         filtrar_envio(["instance/papeleria.db"], permitidas)
+
+
+# Pruebas de abuso agregadas en la revisión de la semana 6
+
+@pytest.mark.parametrize(
+    "ruta",
+    [
+        "instance/papeleria.db-wal",
+        "instance/papeleria.db-journal",
+        "instance/papeleria.db-shm",
+        "backup/papeleria.db.bak",
+        "datos/clientes.sqlite3-wal",
+    ],
+)
+def test_archivos_auxiliares_y_copias_de_la_base_de_datos_se_bloquean(ruta):
+    with pytest.raises(ArchivoProhibidoError, match="no se puede enviar"):
+        filtrar_envio([ruta], [ruta])
+
+
+@pytest.mark.parametrize("ruta", ["prod.env", ".envrc", "certs/servidor.pem", "claves/api.key"])
+def test_otros_archivos_de_secretos_se_bloquean(ruta):
+    with pytest.raises(ArchivoProhibidoError, match="no se puede enviar"):
+        filtrar_envio([ruta], [ruta])
+
+
+def test_nombre_con_db_en_medio_que_no_es_base_de_datos_se_envia():
+    assert filtrar_envio(["app/dbutils.py"], ["app/dbutils.py"]) == ["app/dbutils.py"]

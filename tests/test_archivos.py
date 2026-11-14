@@ -124,3 +124,25 @@ def test_mensaje_de_error_no_incluye_caracteres_de_control():
     with pytest.raises(ArchivoProhibidoError) as error:
         filtrar_envio(["x\x1b[2J/.env"], PERMITIDAS)
     assert str(error.value) == "El archivo x?[2J/.env no se puede enviar"
+
+
+@pytest.mark.parametrize(
+    "ruta",
+    [
+        "datos/clientes.sqlite",
+        "datos/clientes.sqlite3",
+        "instance/PAPELERIA.DB",
+        r"instance\papeleria.db",
+        r"config\.env",
+    ],
+)
+def test_bases_de_datos_y_env_en_cualquier_forma_dan_el_mensaje_exacto(ruta):
+    with pytest.raises(ArchivoProhibidoError) as error:
+        filtrar_envio([ruta], [ruta])
+    assert str(error.value) == f"El archivo {ruta} no se puede enviar"
+
+
+def test_lista_permitida_escrita_con_barra_invertida_tambien_se_normaliza():
+    permitidas = [r"app\pedidos.py", "./datos/semilla.sql"]
+    seleccion = ["app/pedidos.py", "datos/semilla.sql"]
+    assert filtrar_envio(seleccion, permitidas) == ["app/pedidos.py", "datos/semilla.sql"]

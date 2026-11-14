@@ -87,6 +87,7 @@ asistente-pruebas-pedido/
 ├── .env.example              plantilla de variables de entorno, sin valores reales
 ├── .gitignore                ignora .env, bases de datos y el entorno virtual
 ├── bitacora_ia.md            decisiones sobre las sugerencias de la IA
+├── LICENSE                   licencia MIT
 ├── pyproject.toml            configuración de ruff
 ├── pytest.ini                configuración de pytest
 ├── requirements.txt          dependencias para las pruebas
@@ -104,8 +105,11 @@ verificó en el código antes de corregirlo. Todo está registrado en [bitacora_
 
 ## 8. Autor y licencia
 
-David Felipe Deulufeutt Cortinez. Trabajo académico para la Fundación Escuela Tecnológica de Neiva Jesús Oviedo
-Pérez. Sin licencia de código abierto: todos los derechos reservados al autor.
+**Autor:** David Felipe Deulufeutt Cortinez. Trabajo académico para la Fundación Escuela Tecnológica de Neiva
+Jesús Oviedo Pérez.
+
+**Licencia:** código abierto bajo la [licencia MIT](LICENSE). Puedes usar, copiar, modificar y distribuir el
+código, siempre que conserves el aviso de copyright y la licencia.
 
 ## Funcionalidad de la semana 5
 

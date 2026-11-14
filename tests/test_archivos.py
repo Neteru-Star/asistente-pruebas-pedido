@@ -82,3 +82,18 @@ def test_otros_archivos_de_secretos_se_bloquean(ruta):
 
 def test_nombre_con_db_en_medio_que_no_es_base_de_datos_se_envia():
     assert filtrar_envio(["app/dbutils.py"], ["app/dbutils.py"]) == ["app/dbutils.py"]
+
+
+@pytest.mark.parametrize(
+    "ruta",
+    [".env::$DATA", "instance/papeleria.db::$DATA", ".env ", ".env.", "instance/papeleria.db."],
+)
+def test_rutas_equivalentes_en_windows_se_bloquean(ruta):
+    with pytest.raises(ArchivoProhibidoError, match="no se puede enviar"):
+        filtrar_envio([ruta], [ruta])
+
+
+def test_nombre_corto_de_windows_se_bloquea():
+    # En NTFS, ENV~1 es el nombre corto 8.3 de .env y abre el mismo archivo
+    with pytest.raises(ArchivoProhibidoError, match="ENV~1"):
+        filtrar_envio(["ENV~1"], ["ENV~1"])

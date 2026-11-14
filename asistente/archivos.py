@@ -7,6 +7,8 @@ NOMBRES_ENV_EXTRA = (".envrc",)
 # .db, .sqlite o .sqlite3 al final o seguidos de "-" o "." (papeleria.db-wal, papeleria.db.bak)
 PATRON_BASE_DE_DATOS = re.compile(r"\.(db|sqlite3?)([.-]|$)")
 EXTENSIONES_CLAVES = (".pem", ".key")
+# Nombre corto 8.3 de Windows, como ENV~1: puede abrir cualquier archivo, incluido el .env
+PATRON_NOMBRE_CORTO = re.compile(r"~\d")
 
 
 class ArchivoProhibidoError(Exception):
@@ -23,7 +25,13 @@ def _normalizar(ruta: str) -> str:
 
 def _es_prohibido(ruta: str) -> bool:
     """Indica si la ruta es un .env o una variante, una base de datos o una clave privada."""
-    nombre = ruta.split("/")[-1].lower()
+    if ":" in ruta:
+        # Flujos alternativos de NTFS (.env::$DATA) o rutas con unidad (C:/...)
+        return True
+    # Windows ignora los puntos y espacios finales: ".env " abre el mismo archivo que ".env"
+    nombre = ruta.split("/")[-1].lower().rstrip(". ")
+    if PATRON_NOMBRE_CORTO.search(nombre):
+        return True
     es_env = (
         nombre == NOMBRE_ENV
         or nombre.startswith(NOMBRE_ENV + ".")

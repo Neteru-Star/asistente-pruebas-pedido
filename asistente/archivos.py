@@ -1,5 +1,6 @@
 """HU-10: decide qué archivos se pueden enviar a la API de IA."""
 
+import posixpath
 import re
 
 NOMBRE_ENV = ".env"
@@ -16,11 +17,8 @@ class ArchivoProhibidoError(Exception):
 
 
 def _normalizar(ruta: str) -> str:
-    """Escribe la ruta con "/" y sin el "./" inicial."""
-    ruta = ruta.replace("\\", "/")
-    if ruta.startswith("./"):
-        ruta = ruta[2:]
-    return ruta
+    """Escribe la ruta con "/" y sin partes redundantes como "./" o "//"."""
+    return posixpath.normpath(ruta.replace("\\", "/"))
 
 
 def _es_prohibido(ruta: str) -> bool:

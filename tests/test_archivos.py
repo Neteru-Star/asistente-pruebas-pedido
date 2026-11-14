@@ -97,3 +97,15 @@ def test_nombre_corto_de_windows_se_bloquea():
     # En NTFS, ENV~1 es el nombre corto 8.3 de .env y abre el mismo archivo
     with pytest.raises(ArchivoProhibidoError, match="ENV~1"):
         filtrar_envio(["ENV~1"], ["ENV~1"])
+
+
+@pytest.mark.parametrize("ruta", ["././app/pedidos.py", "app//pedidos.py", "app/./pedidos.py"])
+def test_rutas_con_partes_redundantes_se_normalizan(ruta):
+    assert filtrar_envio([ruta], PERMITIDAS) == ["app/pedidos.py"]
+
+
+@pytest.mark.parametrize(
+    "ruta", ["../app/pedidos.py", "/app/pedidos.py", "otro/../../app/pedidos.py"]
+)
+def test_rutas_fuera_del_repositorio_no_se_envian(ruta):
+    assert filtrar_envio([ruta], PERMITIDAS) == []

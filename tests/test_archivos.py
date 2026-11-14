@@ -118,3 +118,9 @@ def test_rutas_fuera_del_repositorio_no_se_envian(ruta):
 def test_entradas_que_no_son_listas_de_rutas_lanzan_type_error(seleccion, permitidas):
     with pytest.raises(TypeError, match="lista de rutas"):
         filtrar_envio(seleccion, permitidas)
+
+
+def test_mensaje_de_error_no_incluye_caracteres_de_control():
+    with pytest.raises(ArchivoProhibidoError) as error:
+        filtrar_envio(["x\x1b[2J/.env"], PERMITIDAS)
+    assert str(error.value) == "El archivo x?[2J/.env no se puede enviar"

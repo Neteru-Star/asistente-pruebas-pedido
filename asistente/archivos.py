@@ -40,6 +40,11 @@ def _es_prohibido(ruta: str) -> bool:
     return es_env or es_base_de_datos or nombre.endswith(EXTENSIONES_CLAVES)
 
 
+def _para_mostrar(ruta: str) -> str:
+    """Reemplaza por "?" los caracteres de control, para que no alteren la terminal ni el log."""
+    return "".join(caracter if caracter.isprintable() else "?" for caracter in ruta)
+
+
 def _validar_rutas(rutas: object, parametro: str) -> None:
     """Lanza TypeError si rutas no es una lista o tupla de textos."""
     es_lista_de_textos = isinstance(rutas, (list, tuple)) and all(
@@ -58,7 +63,7 @@ def filtrar_envio(seleccion: list[str], permitidas: list[str]) -> list[str]:
     _validar_rutas(permitidas, "permitidas")
     for ruta in seleccion:
         if _es_prohibido(_normalizar(ruta)):
-            raise ArchivoProhibidoError(f"El archivo {ruta} no se puede enviar")
+            raise ArchivoProhibidoError(f"El archivo {_para_mostrar(ruta)} no se puede enviar")
 
     permitidas_normalizadas = {_normalizar(p) for p in permitidas}
     resultado = []

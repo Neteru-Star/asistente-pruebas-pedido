@@ -55,3 +55,94 @@ def test_base_de_datos_real_se_bloquea_aunque_este_en_la_lista():
     permitidas = PERMITIDAS + ["instance/papeleria.db"]
     with pytest.raises(ArchivoProhibidoError, match="papeleria.db"):
         filtrar_envio(["instance/papeleria.db"], permitidas)
+
+
+# Pruebas de abuso agregadas en la revisión de la semana 6
+
+@pytest.mark.parametrize(
+    "ruta",
+    [
+        "instance/papeleria.db-wal",
+        "instance/papeleria.db-journal",
+        "instance/papeleria.db-shm",
+        "backup/papeleria.db.bak",
+        "datos/clientes.sqlite3-wal",
+    ],
+)
+def test_archivos_auxiliares_y_copias_de_la_base_de_datos_se_bloquean(ruta):
+    with pytest.raises(ArchivoProhibidoError, match="no se puede enviar"):
+        filtrar_envio([ruta], [ruta])
+
+
+@pytest.mark.parametrize("ruta", ["prod.env", ".envrc", "certs/servidor.pem", "claves/api.key"])
+def test_otros_archivos_de_secretos_se_bloquean(ruta):
+    with pytest.raises(ArchivoProhibidoError, match="no se puede enviar"):
+        filtrar_envio([ruta], [ruta])
+
+
+def test_nombre_con_db_en_medio_que_no_es_base_de_datos_se_envia():
+    assert filtrar_envio(["app/dbutils.py"], ["app/dbutils.py"]) == ["app/dbutils.py"]
+
+
+@pytest.mark.parametrize(
+    "ruta",
+    [".env::$DATA", "instance/papeleria.db::$DATA", ".env ", ".env.", "instance/papeleria.db."],
+)
+def test_rutas_equivalentes_en_windows_se_bloquean(ruta):
+    with pytest.raises(ArchivoProhibidoError, match="no se puede enviar"):
+        filtrar_envio([ruta], [ruta])
+
+
+def test_nombre_corto_de_windows_se_bloquea():
+    # En NTFS, ENV~1 es el nombre corto 8.3 de .env y abre el mismo archivo
+    with pytest.raises(ArchivoProhibidoError, match="ENV~1"):
+        filtrar_envio(["ENV~1"], ["ENV~1"])
+
+
+@pytest.mark.parametrize("ruta", ["././app/pedidos.py", "app//pedidos.py", "app/./pedidos.py"])
+def test_rutas_con_partes_redundantes_se_normalizan(ruta):
+    assert filtrar_envio([ruta], PERMITIDAS) == ["app/pedidos.py"]
+
+
+@pytest.mark.parametrize(
+    "ruta", ["../app/pedidos.py", "/app/pedidos.py", "otro/../../app/pedidos.py"]
+)
+def test_rutas_fuera_del_repositorio_no_se_envian(ruta):
+    assert filtrar_envio([ruta], PERMITIDAS) == []
+
+
+@pytest.mark.parametrize(
+    ("seleccion", "permitidas"),
+    [("app/pedidos.py", PERMITIDAS), ([None], PERMITIDAS), (["app/pedidos.py"], "app/pedidos.py")],
+)
+def test_entradas_que_no_son_listas_de_rutas_lanzan_type_error(seleccion, permitidas):
+    with pytest.raises(TypeError, match="lista de rutas"):
+        filtrar_envio(seleccion, permitidas)
+
+
+def test_mensaje_de_error_no_incluye_caracteres_de_control():
+    with pytest.raises(ArchivoProhibidoError) as error:
+        filtrar_envio(["x\x1b[2J/.env"], PERMITIDAS)
+    assert str(error.value) == "El archivo x?[2J/.env no se puede enviar"
+
+
+@pytest.mark.parametrize(
+    "ruta",
+    [
+        "datos/clientes.sqlite",
+        "datos/clientes.sqlite3",
+        "instance/PAPELERIA.DB",
+        r"instance\papeleria.db",
+        r"config\.env",
+    ],
+)
+def test_bases_de_datos_y_env_en_cualquier_forma_dan_el_mensaje_exacto(ruta):
+    with pytest.raises(ArchivoProhibidoError) as error:
+        filtrar_envio([ruta], [ruta])
+    assert str(error.value) == f"El archivo {ruta} no se puede enviar"
+
+
+def test_lista_permitida_escrita_con_barra_invertida_tambien_se_normaliza():
+    permitidas = [r"app\pedidos.py", "./datos/semilla.sql"]
+    seleccion = ["app/pedidos.py", "datos/semilla.sql"]
+    assert filtrar_envio(seleccion, permitidas) == ["app/pedidos.py", "datos/semilla.sql"]

@@ -1,13 +1,23 @@
 # Claves y configuración local: nunca se suben (RNF-04)
 .env
 .env.*
+*.env
+.envrc
+!.env.example
 
-# Bases de datos reales
+# Bases de datos reales y sus archivos auxiliares o copias
 *.db
+*.db-*
+*.db.*
 *.sqlite
+*.sqlite-*
 *.sqlite3
+*.sqlite3-*
+*.bak
+instance/
 
 # Entorno de Python
 .venv/
 __pycache__/
 .pytest_cache/
+.ruff_cache/

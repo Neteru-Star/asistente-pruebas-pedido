@@ -85,13 +85,85 @@ Asistente usado: Claude Code (modelo Claude Opus 5.5), en modo agente, desde la 
   `PurePosixPath("app//pedidos.py")` devuelve `app/pedidos.py`.
 - **Commit relacionado:** c97bf66 «Refactor de filtrar_envio sin cambiar su comportamiento»
 
+## Semana 6: revisión de código y seguridad
+
+### Entrada 7
+
+- **Fecha:** 2026-11-14
+- **Prompt o sugerencia:** Segunda revisión con un agente revisor independiente de Claude Code, que solo podía
+  leer. Prompt: «Actúa como revisor de código y seguridad de un equipo Python. NO modifiques ningún archivo: solo
+  lee y reporta. Contexto: el repositorio está en C:\Users\User\Escritorio\asistente-pruebas-pedido (commit
+  c3066d7). Es una CLI en Python que, antes de enviar código a una API de IA externa, filtra los archivos con una
+  lista permitida. Su objetivo de seguridad (RNF-04) es que ningún contenido del archivo .env ni de la base de
+  datos real (unos 200 clientes) llegue a la IA. Revisa asistente/archivos.py, tests/test_archivos.py,
+  .gitignore, requirements.txt, pytest.ini y README.md. Tarea: revisa el código con estos criterios: 1.
+  Corrección y pruebas: ¿la función cumple el contrato del README? ¿Faltan casos límite o de abuso en las
+  pruebas? 2. Diseño y legibilidad: nombres, valores mágicos, duplicación, docstrings. 3. Seguridad: inyección,
+  secretos (código, historial de git, .gitignore, .env.example), contraseñas, control de acceso (¿se puede saltar
+  el filtro?), dependencias (existen, son necesarias, tienen versión fijada). Formato: una tabla con Id (IA-01,
+  IA-02...), archivo y línea, problema, categoría (OWASP o tipo), severidad (alta, media o baja) y corrección
+  propuesta. Separa la tabla en dos partes: «Problemas seguros», los que puedes demostrar con el código, y
+  «Sospechas», los que dependen de supuestos que no puedes comprobar. Para cada problema seguro incluye una
+  entrada concreta que lo demuestre. Restricciones: no inventes líneas ni funciones que no existan; cita el
+  número de línea real. Si un criterio no aplica, dilo con su razón. Máximo 12 hallazgos, ordenados por
+  severidad. Tu respuesta final debe ser solo el informe, en español.»
+- **Decisión:** Aceptada con cambios
+- **Por qué:** Los 8 problemas seguros se reprodujeron, así que se aceptaron, pero IA-01 bajó de alta a media: solo
+  expone datos si el archivo también está en la lista permitida. Las sospechas IA-09, IA-10 e IA-11 quedaron como
+  pendientes porque dependen de la CLI que leerá los archivos, que todavía no existe.
+- **Verificación:** Ejecuté en Python la entrada de cada hallazgo (por ejemplo, `papeleria.db-wal` y `.env::$DATA`
+  pasaban el filtro) y las dos versiones alteradas de IA-04, que pasaban las 12 pruebas. La clasificación completa
+  está en la sección 3 de [revision_seguridad.md](revision_seguridad.md).
+- **Commit relacionado:** c3066d7 (commit revisado)
+
+### Entrada 8
+
+- **Fecha:** 2026-11-14
+- **Prompt o sugerencia:** El asistente preguntó si corregir todos los hallazgos reales (IA-01 a IA-08, IA-12 y el
+  nombre corto `ENV~1`) o solo los de severidad alta y media.
+- **Decisión:** Aceptada: corregir todos los reales, uno por commit y con pruebas de abuso nuevas.
+- **Por qué:** La rúbrica pide corregir todos los problemas reales, y cada uno se corrige con poco código. Dejar los
+  de severidad baja habría dejado, por ejemplo, el `TypeError` sin control.
+- **Verificación:** Después de cada commit corrí `pytest` y `ruff check .`. Al final pasan 44 pruebas (32 nuevas),
+  ninguna de las 12 originales cambió y ruff no da avisos.
+- **Commit relacionado:** 88344e4 a 745b5d9 (un commit por hallazgo)
+
+### Entrada 9
+
+- **Fecha:** 2026-11-14
+- **Prompt o sugerencia:** Para IA-05, el revisor propuso escribir la ruta en el mensaje con `{ruta!r}`.
+- **Decisión:** Rechazada
+- **Por qué:** `{ruta!r}` cambia el mensaje a `El archivo '.env' no se puede enviar`, con comillas, y haría fallar
+  `test_seleccion_con_env_no_envia_nada_e_indica_el_archivo`. Para que pasara habría que modificar una prueba
+  existente, cosa que las reglas prohíben. En su lugar, los caracteres de control se muestran como `?`, y el
+  mensaje de las rutas normales no cambia.
+- **Verificación:** La prueba nueva `test_mensaje_de_error_no_incluye_caracteres_de_control` comprueba el mensaje
+  exacto, y la prueba de `.env` sigue pasando sin cambios.
+- **Commit relacionado:** bd7d16f «Quita caracteres de control del mensaje de error (IA-05)»
+
+### Entrada 10
+
+- **Fecha:** 2026-11-14
+- **Prompt o sugerencia:** Las correcciones las hizo Claude Code como agente, en la rama propia
+  `revision/semana6`, con una instrucción delimitada: corregir los hallazgos reales de la revisión, uno por
+  commit, sin modificar las pruebas existentes y con pruebas de abuso nuevas.
+- **Decisión:** Aceptada con cambios
+- **Por qué:** En la revisión del diff apareció un defecto del propio agente: la prueba de IA-05 tenía un byte de
+  escape real dentro del archivo, en lugar del texto `\x1b`. Funcionaba, pero no se podía leer ni revisar. Se
+  corrigió en ese mismo commit, antes de subirlo. El resto del diff cumplía la instrucción: un commit por hallazgo
+  y ninguna de las 12 pruebas originales modificada.
+- **Verificación:** Revisé el diff de `main..revision/semana6` antes de integrarlo. Con `grep` confirmé que no quedan
+  bytes de escape en las pruebas. Cloné la rama en una carpeta limpia y corrí los comandos del README: instalación,
+  `pytest` (44 pruebas pasan), `ruff check .` (sin avisos) y `pip-audit` (sin vulnerabilidades).
+- **Commit relacionado:** merge de `revision/semana6` en `main`
+
 ## Resumen
 
 | Decisión | Cantidad |
 |---|---|
-| Aceptadas | 3 |
-| Aceptadas con cambios | 2 |
-| Rechazadas | 1 |
+| Aceptadas | 4 |
+| Aceptadas con cambios | 4 |
+| Rechazadas | 2 |
 
 ## Errores que atraparon las pruebas
 
@@ -110,3 +182,19 @@ se omite o da error. Las pruebas no atraparon errores en la función, pero `pyte
 pruebas generadas, y eso me enseñó a no ignorar los avisos aunque todo esté en verde. En el refactor rechacé
 `pathlib` porque cambiaba el comportamiento. En la próxima funcionalidad escribiría yo al menos un caso de
 error antes de pedirle pruebas al asistente, para comparar lo que propone con lo que yo esperaba.
+
+## Errores que atraparon las pruebas en la semana 6
+
+Las pruebas nuevas de IA-04 atraparon dos versiones defectuosas de `filtrar_envio`, que pasaban las 12 pruebas de
+la semana 5. Con una función que solo bloqueaba `.db`, fallaron 7 pruebas: `papeleria.db-wal`, `.sqlite` y
+`.sqlite3`. Con una función que no normalizaba la lista permitida, falló 1:
+`test_lista_permitida_escrita_con_barra_invertida_tambien_se_normaliza`. Esto mostró que tener 12 pruebas en verde
+no bastaba: también había que probar que fallan cuando el código está mal.
+
+## Reflexión de la semana 6
+
+La revisión con IA encontró problemas que mis 12 pruebas no veían, como los archivos `-wal` de SQLite, pero los
+tuve que reproducir uno por uno antes de aceptarlos, y uno exageraba su severidad. Lo más útil fue buscar lo que
+la IA no vio: el nombre corto `ENV~1` de Windows, que comprobé con un `.env` de prueba. También aprendí que el
+agente comete errores al corregir, como el byte de escape en una prueba, y que por eso hay que revisar su diff
+antes de integrarlo.
